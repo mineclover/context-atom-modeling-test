@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useCounterViewModel } from './useCounterViewModel';
+import { useCounterViewModel } from '../core/useCounterViewModel';
 
 export const CounterDisplay: React.FC = () => {
   const { count } = useCounterViewModel();

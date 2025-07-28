@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
-import { JotaiProvider } from './JotaiContext'
+import { CounterProvider } from '../contexts/counterContext'
 import { CounterDisplay } from './CounterDisplay'
 import { CounterController } from './CounterController'
 import { ValueDisplay } from './ValueDisplay'
@@ -46,7 +46,7 @@ const Widget = () => {
 	}
 
 	return (
-		<JotaiProvider>
+		<CounterProvider>
 			<View style={styles.container}>
 				{/* 배경 장식 */}
 				<Animated.View style={[styles.backgroundDecoration, animatedStyle]} />
@@ -70,13 +70,13 @@ const Widget = () => {
 								🔬 Description
 							</Text>
 							<Text style={styles.descriptionText}>
-								Jotai atom sharing test with Context API. Click buttons to see synchronized state updates.
+								Simplified Jotai context pattern. Click buttons to see synchronized state updates.
 							</Text>
 						</View>
 					</View>
 				</View>
 			</View>
-		</JotaiProvider>
+		</CounterProvider>
 	);
 }
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { useCounterViewModel } from './useCounterViewModel'
+import { useCounterViewModel } from '../core/useCounterViewModel'
 
 export const CounterController: React.FC = () => {
 	const { increment, decrement, reset } = useCounterViewModel()

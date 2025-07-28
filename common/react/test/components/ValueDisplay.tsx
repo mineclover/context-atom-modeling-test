@@ -1,11 +1,9 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { useAtomValue } from 'jotai'
-import { useJotaiContext } from './JotaiContext'
+import { useCounterValue } from '../contexts/counterContext'
 
 export const ValueDisplay: React.FC = () => {
-	const { counterAtomRef } = useJotaiContext()
-	const currentValue = useAtomValue(counterAtomRef.current)
+	const currentValue = useCounterValue()
 
 	return (
 		<View style={styles.container}>

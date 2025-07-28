@@ -23,7 +23,7 @@ interface Process {
 export default function ProcessDemo() {
   const [processes, setProcesses] = useState<Process[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const fadeAnim = new Animated.Value(0);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -31,7 +31,7 @@ export default function ProcessDemo() {
       duration: 1000,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [fadeAnim]);
 
   const startProcesses = () => {
     setIsRunning(true);
@@ -183,7 +183,7 @@ export default function ProcessDemo() {
           <View style={styles.processContainer}>
             {processes.length === 0 ? (
               <Text style={styles.emptyText}>
-                '프로세스 시작' 버튼을 눌러 시작하세요
+&lsquo;프로세스 시작&rsquo; 버튼을 눌러 시작하세요
               </Text>
             ) : (
               processes.map((process) => (

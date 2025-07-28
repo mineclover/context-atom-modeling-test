@@ -1,16 +1,14 @@
-import { useAtom } from 'jotai'
-import { useJotaiContext } from './JotaiContext'
+import { useCounter } from '../contexts/counterContext'
 
 export const useCounterViewModel = () => {
-	const { counterAtomRef } = useJotaiContext()
-	const [count, setCount] = useAtom(counterAtomRef.current)
+	const [count, setCount] = useCounter()
 
 	const increment = () => {
 		setCount(count + 1)
 	}
 
 	const decrement = () => {
-		setCount((prev) => prev - 1)
+		setCount((prev: number) => prev - 1)
 	}
 
 	const reset = () => {
