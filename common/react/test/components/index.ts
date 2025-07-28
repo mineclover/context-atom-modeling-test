@@ -1,6 +1,7 @@
 // UI Components
 export { default as Widget } from './Widget'
 export { default as EnhancedWidget } from './EnhancedWidget'
+export { default as DebugWidget } from './DebugWidget'
 export { AnimationControls } from './AnimationControls'
 export { CounterDisplay } from './CounterDisplay'
 export { CounterController } from './CounterController'

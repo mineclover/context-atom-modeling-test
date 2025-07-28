@@ -10,15 +10,31 @@ import { useFloatingAnimation } from '../core/useFloatingAnimation'
 const Widget = () => {
 	// 표준화된 애니메이션 훅 사용
 	const { animatedStyle, startAnimation, stopAnimation, resetAnimation } = useFloatingAnimation({
-		duration: 3000,
-		translateRange: [0, -10],
-		rotateRange: ['0deg', '180deg'],
-		autoStart: false, // 수동으로 제어
+		duration: 2000, // 더 빠르게
+		translateRange: [0, -20], // 더 크게 움직이도록
+		rotateRange: ['0deg', '360deg'], // 한 바퀴 회전
+		autoStart: true, // 자동 시작으로 변경하여 테스트
 	})
+
+	// 디버깅용 함수들
+	const handlePlay = () => {
+		console.log('Play button pressed')
+		startAnimation()
+	}
+
+	const handleStop = () => {
+		console.log('Stop button pressed')
+		stopAnimation()
+	}
+
+	const handleReset = () => {
+		console.log('Reset button pressed')
+		resetAnimation()
+	}
 
 	return (
 		<CounterProvider>
-			<View style={styles.container}>
+			<Animated.View style={[styles.container, animatedStyle]}>
 				{/* 배경 장식 */}
 				<Animated.View style={[styles.backgroundDecoration, animatedStyle]} />
 
@@ -38,9 +54,9 @@ const Widget = () => {
 
 						{/* 애니메이션 컨트롤 버튼 */}
 						<AnimationControls
-							onPlay={startAnimation}
-							onStop={stopAnimation}
-							onReset={resetAnimation}
+							onPlay={handlePlay}
+							onStop={handleStop}
+							onReset={handleReset}
 							size="small"
 						/>
 
@@ -54,7 +70,7 @@ const Widget = () => {
 						</View>
 					</View>
 				</View>
-			</View>
+			</Animated.View>
 		</CounterProvider>
 	);
 }
@@ -80,12 +96,12 @@ const styles = StyleSheet.create({
 	},
 	backgroundDecoration: {
 		position: 'absolute',
-		top: -80,
-		right: -80,
-		width: 160,
-		height: 160,
-		backgroundColor: 'rgba(255,255,255,0.1)',
-		borderRadius: 80,
+		top: -40,
+		right: -40,
+		width: 80,
+		height: 80,
+		backgroundColor: 'rgba(255,255,255,0.3)', // 더 선명하게
+		borderRadius: 40,
 	},
 	content: {
 		position: 'relative',

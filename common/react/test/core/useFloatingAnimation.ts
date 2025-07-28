@@ -57,10 +57,24 @@ export const useFloatingAnimation = ({
     }
   }, [animatedValue, duration, easing])
 
+  // 애니메이션 정지 함수 (startAnimation에서 사용하기 위해 먼저 정의)
+  const stopAnimation = useMemo(() => {
+    return () => {
+      isRunningRef.current = false
+      if (animationRef.current) {
+        animationRef.current.stop()
+        animationRef.current = null
+      }
+    }
+  }, [])
+
   // 애니메이션 시작
   const startAnimation = useMemo(() => {
     return () => {
-      if (isRunningRef.current) return
+      // 이미 실행 중이면 먼저 정지
+      if (isRunningRef.current) {
+        stopAnimation()
+      }
 
       const runAnimation = () => {
         if (!isRunningRef.current) return
@@ -77,18 +91,7 @@ export const useFloatingAnimation = ({
       isRunningRef.current = true
       runAnimation()
     }
-  }, [createAnimationSequence])
-
-  // 애니메이션 정지
-  const stopAnimation = useMemo(() => {
-    return () => {
-      isRunningRef.current = false
-      if (animationRef.current) {
-        animationRef.current.stop()
-        animationRef.current = null
-      }
-    }
-  }, [])
+  }, [createAnimationSequence, stopAnimation])
 
   // 애니메이션 리셋
   const resetAnimation = useMemo(() => {

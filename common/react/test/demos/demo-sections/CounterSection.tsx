@@ -2,6 +2,7 @@ import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { CounterProvider } from '../../contexts/counterContext'
 import Widget from '../../components/Widget'
+import DebugWidget from '../../components/DebugWidget'
 
 export const CounterSection: React.FC = () => {
   return (
@@ -14,7 +15,7 @@ export const CounterSection: React.FC = () => {
         </CounterProvider>
         <CounterProvider>
           <Widget />
-          <Widget />
+          <DebugWidget />
         </CounterProvider>
       </View>
     </View>
