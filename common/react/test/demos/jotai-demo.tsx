@@ -6,6 +6,7 @@ import { UserSection } from './demo-sections/UserSection'
 import { ThemeSection } from './demo-sections/ThemeSection'
 import { TextSection } from './demo-sections/TextSection'
 import { MultiContextSection } from './demo-sections/MultiContextSection'
+import { EnhancedAnimationSection } from './demo-sections/EnhancedAnimationSection'
 import { PatternBenefits } from './demo-sections/PatternBenefits'
 
 export default function JotaiDemo() {
@@ -17,6 +18,7 @@ export default function JotaiDemo() {
       <ThemeSection />
       <TextSection />
       <MultiContextSection />
+      <EnhancedAnimationSection />
       <PatternBenefits />
     </ScrollView>
   )

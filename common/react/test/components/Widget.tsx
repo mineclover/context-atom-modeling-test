@@ -1,49 +1,20 @@
 import React from 'react'
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Animated } from 'react-native'
 import { CounterProvider } from '../contexts/counterContext'
 import { CounterDisplay } from './CounterDisplay'
 import { CounterController } from './CounterController'
 import { ValueDisplay } from './ValueDisplay'
+import { AnimationControls } from './AnimationControls'
+import { useFloatingAnimation } from '../core/useFloatingAnimation'
 
 const Widget = () => {
-	const animatedValue = React.useRef(new Animated.Value(0)).current
-
-	React.useEffect(() => {
-		const startAnimation = () => {
-			Animated.sequence([
-				Animated.timing(animatedValue, {
-					toValue: 1,
-					duration: 3000,
-					easing: Easing.inOut(Easing.sin),
-					useNativeDriver: true,
-				}),
-				Animated.timing(animatedValue, {
-					toValue: 0,
-					duration: 3000,
-					easing: Easing.inOut(Easing.sin),
-					useNativeDriver: true,
-				}),
-			]).start(() => startAnimation())
-		}
-		startAnimation()
-	}, [])
-
-	const animatedStyle = {
-		transform: [
-			{
-				translateY: animatedValue.interpolate({
-					inputRange: [0, 1],
-					outputRange: [0, -10],
-				}),
-			},
-			{
-				rotate: animatedValue.interpolate({
-					inputRange: [0, 1],
-					outputRange: ['0deg', '180deg'],
-				}),
-			},
-		],
-	}
+	// 표준화된 애니메이션 훅 사용
+	const { animatedStyle, startAnimation, stopAnimation, resetAnimation } = useFloatingAnimation({
+		duration: 3000,
+		translateRange: [0, -10],
+		rotateRange: ['0deg', '180deg'],
+		autoStart: false, // 수동으로 제어
+	})
 
 	return (
 		<CounterProvider>
@@ -65,12 +36,20 @@ const Widget = () => {
 						<CounterDisplay />
 						<CounterController />
 
+						{/* 애니메이션 컨트롤 버튼 */}
+						<AnimationControls
+							onPlay={startAnimation}
+							onStop={stopAnimation}
+							onReset={resetAnimation}
+							size="small"
+						/>
+
 						<View style={styles.descriptionContainer}>
 							<Text style={styles.descriptionTitle}>
 								🔬 Description
 							</Text>
 							<Text style={styles.descriptionText}>
-								Simplified Jotai context pattern. Click buttons to see synchronized state updates.
+								Simplified Jotai context pattern with animation controls. Test counter sync and animations.
 							</Text>
 						</View>
 					</View>
