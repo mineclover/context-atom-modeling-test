@@ -51,7 +51,7 @@ export interface ActionLog {
   payload?: any;
 }
 
-// 뷰 상태 관리 hooks
+// 통합된 뷰 상태 관리 hook (상태 + 핸들러)
 export const useViewState = () => {
   const [componentStatuses, setComponentStatuses] = useState<Map<string, 'idle' | 'loading' | 'success' | 'error'>>(new Map());
   const [componentVisibility, setComponentVisibility] = useState<Map<string, boolean>>(new Map());
@@ -104,6 +104,31 @@ export const useViewState = () => {
     },
   };
 
+  // 액션 핸들러 자동 등록 (hook 내부에서 처리)
+  useActionHandler('view/update-status', (payload) => {
+    actions.updateComponentStatus(payload.componentId, payload.status);
+  });
+
+  useActionHandler('view/toggle-visibility', (payload) => {
+    actions.toggleComponentVisibility(payload.componentId, payload.visible);
+  });
+
+  useActionHandler('view/set-loading', (payload) => {
+    actions.setComponentLoading(payload.componentId, payload.loading);
+  });
+
+  useActionHandler('view/add-log', (payload) => {
+    actions.addLog(payload.log);
+  });
+
+  useActionHandler('view/update-log', (payload) => {
+    actions.updateLog(payload.id, payload.updates);
+  });
+
+  useActionHandler('view/clear-logs', () => {
+    actions.clearLogs();
+  });
+
   return {
     state: {
       componentStatuses,
@@ -146,40 +171,6 @@ export const useViewActions = () => {
   };
 };
 
-// 뷰 액션 핸들러 설정 hook
-export const useViewActionHandlers = (viewState: ReturnType<typeof useViewState>) => {
-  const { actions } = viewState;
-
-  // 상태 업데이트 핸들러
-  useActionHandler('view/update-status', (payload) => {
-    actions.updateComponentStatus(payload.componentId, payload.status);
-  });
-
-  // 가시성 토글 핸들러
-  useActionHandler('view/toggle-visibility', (payload) => {
-    actions.toggleComponentVisibility(payload.componentId, payload.visible);
-  });
-
-  // 로딩 상태 설정 핸들러
-  useActionHandler('view/set-loading', (payload) => {
-    actions.setComponentLoading(payload.componentId, payload.loading);
-  });
-
-  // 로그 추가 핸들러
-  useActionHandler('view/add-log', (payload) => {
-    actions.addLog(payload.log);
-  });
-
-  // 로그 업데이트 핸들러
-  useActionHandler('view/update-log', (payload) => {
-    actions.updateLog(payload.id, payload.updates);
-  });
-
-  // 로그 클리어 핸들러
-  useActionHandler('view/clear-logs', () => {
-    actions.clearLogs();
-  });
-};
 
 // 뷰 액션 훅 재export
 export const useViewAction = useAction;

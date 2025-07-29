@@ -52,16 +52,13 @@ example/
 
 ## 🔧 Hooks 기반 사용법
 
-### 1. View State 관리
+### 1. View State 관리 (통합된 hook)
 ```tsx
-import { useViewState, useViewActionHandlers } from '../contexts/ViewActionContext';
+import { useViewState } from '../contexts/ViewActionContext';
 
 function MyComponent() {
-  // hooks로 상태와 액션 관리
+  // hooks로 상태와 액션 핸들러 자동 설정
   const viewState = useViewState();
-  
-  // 액션 핸들러 설정
-  useViewActionHandlers(viewState);
   
   // 상태 사용
   const logs = viewState.state.logs;
@@ -124,7 +121,7 @@ function AnimatedComponent() {
 - **Context 제거**: Provider/Consumer 패턴 대신 hooks만 사용
 - **독립적 상태**: 각 컴포넌트가 필요한 상태만 hooks로 관리
 - **createActionContext**: 타입 안전한 액션 시스템만 활용
-- **중앙화된 핸들러**: 앱 레벨에서 한 번만 핸들러 설정
+- **자동 핸들러**: hook 내부에서 핸들러 자동 등록으로 설정 단순화
 
 ### 관심사 분리 원칙
 - **Pure View**: UI 렌더링만 담당, 로직 완전 분리
@@ -137,15 +134,14 @@ function AnimatedComponent() {
 ### 기본 설정 (Provider 최소화)
 ```tsx
 import { createActionContext } from '../common/react/actionRegister/react/ActionContext';
-import { useAnimationHandlers, useViewActionHandlers } from './contexts';
+import { useAnimationHandlers, useViewState } from './contexts';
 
 const { Provider } = createActionContext<ExtendedActionPayloadMap>();
 
 function App() {
-  const viewState = useViewState();
+  const viewState = useViewState(); // 핸들러 자동 설정됨
   
-  // 앱 레벨에서 한 번만 핸들러 설정
-  useViewActionHandlers(viewState);
+  // 애니메이션 핸들러만 별도 설정
   useAnimationHandlers();
 
   return (

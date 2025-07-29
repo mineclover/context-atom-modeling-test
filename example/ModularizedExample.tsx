@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useAnimationHandlers } from './contexts/AnimationContext';
-import { useViewState, useViewActionHandlers } from './contexts/ViewActionContext';
+import { useViewState } from './contexts/ViewActionContext';
 import { DashboardComponent } from './components/DashboardComponent';
 import { UserActionsComponent } from './components/UserActionsComponent';
 import { UIActionsComponent } from './components/UIActionsComponent';
@@ -15,8 +15,7 @@ const { Provider: AppActionProvider } = createActionContext<ExtendedActionPayloa
 const AppContent: React.FC = () => {
   const viewState = useViewState();
   
-  // 핸들러 설정
-  useViewActionHandlers(viewState);
+  // 애니메이션 핸들러만 설정 (viewState는 내부에서 자동 처리)
   useAnimationHandlers();
 
   return (

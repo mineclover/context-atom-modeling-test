@@ -3,6 +3,10 @@ import { Animated, InteractionManager, ScrollView, StyleSheet, Text, TouchableOp
 import { createActionContext } from '../common/react/actionRegister/react/ActionContext';
 import { AppActionPayloadMap } from './actions';
 
+// 추가 Provider들을 위한 wrapper 생성
+const { Provider: ViewActionProvider } = createActionContext();
+const { Provider: AnimationProvider } = createActionContext();
+
 // 타입 안전한 ActionContext 생성
 const { Provider: ActionProvider, useAction, useActionHandler } = createActionContext<AppActionPayloadMap>();
 
@@ -476,15 +480,25 @@ const UserActionsComponent: React.FC = () => {
   );
 };
 
-// UI 관련 컴포넌트 (간소화)
-const UIActionsComponent: React.FC = () => {
+// 통합된 UI 액션 컴포넌트 (로그 + 실제 UI 상태 관리)
+const IntegratedUIActionsComponent: React.FC = () => {
   const action = useAction();
   const { addLog } = useTestContext();
+  
+  // UI 상태 관리
   const [modalVisible, setModalVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'system'>('light');
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastData, setToastData] = useState<{
+    type: 'success' | 'error' | 'warning' | 'info';
+    message: string;
+    duration?: number;
+  } | null>(null);
 
+  // UI 액션 핸들러들
   useActionHandler('ui/show-modal', (payload) => {
+    console.log('UI Handler: show-modal called', payload);
     addLog({ 
       action: 'ui/show-modal', 
       type: 'ui', 
@@ -496,6 +510,7 @@ const UIActionsComponent: React.FC = () => {
   });
 
   useActionHandler('ui/toggle-sidebar', (_payload) => {
+    console.log('UI Handler: toggle-sidebar called');
     addLog({ 
       action: 'ui/toggle-sidebar', 
       type: 'ui', 
@@ -506,6 +521,7 @@ const UIActionsComponent: React.FC = () => {
   });
 
   useActionHandler('ui/set-theme', (payload) => {
+    console.log('UI Handler: set-theme called', payload);
     addLog({ 
       action: 'ui/set-theme', 
       type: 'ui', 
@@ -517,6 +533,7 @@ const UIActionsComponent: React.FC = () => {
   });
 
   useActionHandler('ui/show-toast', (payload) => {
+    console.log('UI Handler: show-toast called', payload);
     addLog({ 
       action: 'ui/show-toast', 
       type: 'ui', 
@@ -524,9 +541,18 @@ const UIActionsComponent: React.FC = () => {
       message: `토스트 표시: ${payload.message}`,
       payload 
     });
+    setToastData(payload);
+    setToastVisible(true);
+    
+    // 토스트 자동 숨김 처리
+    const duration = payload.duration || 3000;
+    setTimeout(() => {
+      setToastVisible(false);
+    }, duration);
   });
 
   useActionHandler('ui/hide-modal', (payload) => {
+    console.log('UI Handler: hide-modal called', payload);
     addLog({ 
       action: 'ui/hide-modal', 
       type: 'ui', 
@@ -550,18 +576,24 @@ const UIActionsComponent: React.FC = () => {
       <View style={styles.buttonRow}>
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/show-toast', {
-            type: 'success',
-            message: '성공 토스트!',
-            duration: 2000
-          })}
+          onPress={() => {
+            console.log('Button clicked: show-toast');
+            action.dispatch('ui/show-toast', {
+              type: 'success',
+              message: '성공 토스트!',
+              duration: 2000
+            });
+          }}
         >
           <Text style={styles.buttonText}>성공 토스트</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/toggle-sidebar')}
+          onPress={() => {
+            console.log('Button clicked: toggle-sidebar');
+            action.dispatch('ui/toggle-sidebar');
+          }}
         >
           <Text style={styles.buttonText}>사이드바 토글</Text>
         </TouchableOpacity>
@@ -570,14 +602,20 @@ const UIActionsComponent: React.FC = () => {
       <View style={styles.buttonRow}>
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/set-theme', { theme: 'dark' })}
+          onPress={() => {
+            console.log('Button clicked: set-theme');
+            action.dispatch('ui/set-theme', { theme: 'dark' });
+          }}
         >
           <Text style={styles.buttonText}>다크 테마</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/show-modal', { modalId: 'test' })}
+          onPress={() => {
+            console.log('Button clicked: show-modal');
+            action.dispatch('ui/show-modal', { modalId: 'test' });
+          }}
         >
           <Text style={styles.buttonText}>모달 열기</Text>
         </TouchableOpacity>
@@ -595,6 +633,19 @@ const UIActionsComponent: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
+      )}
+
+      {toastVisible && toastData && (
+        <Animated.View 
+          style={[
+            styles.toast, 
+            { backgroundColor: toastData.type === 'success' ? '#4CAF50' : 
+                              toastData.type === 'error' ? '#F44336' : 
+                              toastData.type === 'warning' ? '#FF9800' : '#2196F3' }
+          ]}
+        >
+          <Text style={styles.toastText}>{toastData.message}</Text>
+        </Animated.View>
       )}
     </View>
   );
@@ -695,17 +746,21 @@ const CreateActionContextExample: React.FC = () => {
   return (
     <TestProvider>
       <ActionProvider>
-        <ScrollView style={styles.app}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>🚀 ActionContext 시각적 테스트</Text>
-            <Text style={styles.headerSubtitle}>실시간 모니터링 및 시각적 피드백</Text>
-          </View>
-          
-          <ActionDashboard />
-          <UserActionsComponent />
-          <UIActionsComponent />
-          <ToastComponent />
-        </ScrollView>
+        <ViewActionProvider>
+          <AnimationProvider>
+            <ScrollView style={styles.app}>
+              <View style={styles.header}>
+                <Text style={styles.headerTitle}>🚀 ActionContext 시각적 테스트</Text>
+                <Text style={styles.headerSubtitle}>실시간 모니터링 및 시각적 피드백</Text>
+              </View>
+              
+              <ActionDashboard />
+              <UserActionsComponent />
+              <IntegratedUIActionsComponent />
+              <ToastComponent />
+            </ScrollView>
+          </AnimationProvider>
+        </ViewActionProvider>
       </ActionProvider>
     </TestProvider>
   );

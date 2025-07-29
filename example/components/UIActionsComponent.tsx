@@ -3,37 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Modal } from './pure/Modal';
 import { Toast } from './pure/Toast';
 import { useUIActionModule, UIActionHandlers } from '../modules/UIActionModule';
-import { createActionContext } from '../../common/react/actionRegister/react/ActionContext';
-import { AppActionPayloadMap } from '../actions';
 
-// createActionContext 사용
-const { useAction, useActionHandler } = createActionContext<AppActionPayloadMap>();
-
-// UI 액션 컴포넌트 - 비즈니스 로직과 순수 뷰 결합
+// UI 액션 컴포넌트 - 간단한 UI 상태 표시 및 직접 제어
 export const UIActionsComponent: React.FC = () => {
   const { uiState, actions } = useUIActionModule();
-  const appAction = useAction();
-
-  // UI 액션 핸들러 (로컬 상태 업데이트용)
-  useActionHandler('ui/show-modal', (payload) => {
-    actions.setModalVisible(true);
-  });
-
-  useActionHandler('ui/toggle-sidebar', (_payload) => {
-    actions.setSidebarVisible(!uiState.sidebarVisible);
-  });
-
-  useActionHandler('ui/set-theme', (payload) => {
-    actions.setTheme(payload.theme);
-  });
-
-  useActionHandler('ui/show-toast', (payload) => {
-    actions.showToast(payload);
-  });
-
-  useActionHandler('ui/hide-modal', (payload) => {
-    actions.setModalVisible(false);
-  });
 
   return (
     <>
@@ -54,18 +27,28 @@ export const UIActionsComponent: React.FC = () => {
         <View style={styles.buttonRow}>
           <TouchableOpacity 
             style={[styles.button, styles.buttonSmall]} 
-            onPress={() => appAction.dispatch('ui/show-toast', {
-              type: 'success',
-              message: '성공 토스트!',
-              duration: 2000
-            })}
+            onPress={() => {
+              console.log('Button clicked: show-toast');
+              actions.showToast({
+                type: 'success',
+                message: '성공 토스트!',
+                duration: 2000
+              });
+              // 토스트 자동 숨김
+              setTimeout(() => {
+                actions.hideToast();
+              }, 2000);
+            }}
           >
             <Text style={styles.buttonText}>성공 토스트</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={[styles.button, styles.buttonSmall]} 
-            onPress={() => appAction.dispatch('ui/toggle-sidebar')}
+            onPress={() => {
+              console.log('Button clicked: toggle-sidebar');
+              actions.setSidebarVisible(!uiState.sidebarVisible);
+            }}
           >
             <Text style={styles.buttonText}>사이드바 토글</Text>
           </TouchableOpacity>
@@ -74,14 +57,20 @@ export const UIActionsComponent: React.FC = () => {
         <View style={styles.buttonRow}>
           <TouchableOpacity 
             style={[styles.button, styles.buttonSmall]} 
-            onPress={() => appAction.dispatch('ui/set-theme', { theme: 'dark' })}
+            onPress={() => {
+              console.log('Button clicked: set-theme');
+              actions.setTheme('dark');
+            }}
           >
             <Text style={styles.buttonText}>다크 테마</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={[styles.button, styles.buttonSmall]} 
-            onPress={() => appAction.dispatch('ui/show-modal', { modalId: 'test' })}
+            onPress={() => {
+              console.log('Button clicked: show-modal');
+              actions.setModalVisible(true);
+            }}
           >
             <Text style={styles.buttonText}>모달 열기</Text>
           </TouchableOpacity>

@@ -30,7 +30,6 @@ export const useUserActionModule = () => {
     const logId = `${Date.now()}-${Math.random()}`;
     
     viewActions.addLog({
-      id: logId,
       action: actionName,
       type: 'user',
       status: 'pending',

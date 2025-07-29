@@ -35,35 +35,41 @@ export const Toast: React.FC<ToastProps> = ({
 
       // 상태 업데이트를 다음 프레임으로 지연
       requestAnimationFrame(() => {
-        // 애니메이션 시퀀스 생성
-        const animationSequence = Animated.sequence([
-          // 토스트 슬라이드 인
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          // 지정된 시간 동안 대기
-          Animated.delay(toastData.duration || 3000),
-          // 토스트 슬라이드 아웃
-          Animated.timing(slideAnim, {
-            toValue: -100,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]);
-
         // 애니메이션 시작 전 초기값 설정
         slideAnim.setValue(-100);
         
-        // 애니메이션 참조 저장 및 시작
-        animationRef.current = animationSequence;
-        animationSequence.start((finished) => {
-          if (finished) {
-            // 토스트 숨김 이벤트는 부모 컴포넌트에서 처리
-          }
-          animationRef.current = null;
+        // 슬라이드 인 애니메이션만 실행
+        const slideInAnimation = Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
         });
+
+        // 애니메이션 참조 저장 및 시작
+        animationRef.current = slideInAnimation;
+        slideInAnimation.start((finished) => {
+          if (finished) {
+            animationRef.current = null;
+          }
+        });
+      });
+    } else if (!visible) {
+      // visible이 false가 되면 슬라이드 아웃 애니메이션 실행
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+      
+      const slideOutAnimation = Animated.timing(slideAnim, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+      });
+      
+      animationRef.current = slideOutAnimation;
+      slideOutAnimation.start((finished) => {
+        if (finished) {
+          animationRef.current = null;
+        }
       });
     }
   }, [visible, toastData, slideAnim, animationAction]);

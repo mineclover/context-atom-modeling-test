@@ -2,15 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { StatusIndicator } from './pure/StatusIndicator';
 import { useUserActionModule, UserActionHandlers } from '../modules/UserActionModule';
-import { useViewState, useViewActionHandlers } from '../contexts/ViewActionContext';
+import { useViewState } from '../contexts/ViewActionContext';
 
 // 사용자 액션 컴포넌트 - 비즈니스 로직과 순수 뷰 결합
 export const UserActionsComponent: React.FC = () => {
   const { userProfile, loadingStates, appAction } = useUserActionModule();
   const viewState = useViewState();
-  
-  // 뷰 액션 핸들러 설정
-  useViewActionHandlers(viewState);
 
   // 컴포넌트 상태 가져오기
   const getComponentStatus = (actionName: string) => {
