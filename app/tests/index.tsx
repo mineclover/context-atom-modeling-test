@@ -43,6 +43,15 @@ export default function TestsIndex() {
               </Text>
             </View>
           </Link>
+
+          <Link href="/tests/action-context" style={styles.link}>
+            <View style={styles.linkCard}>
+              <Text style={styles.linkTitle}>⚡ ActionContext 테스트 #1</Text>
+              <Text style={styles.linkDescription}>
+                createActionContext 패턴 테스트 - 첫 번째
+              </Text>
+            </View>
+          </Link>
         </View>
       </ScrollView>
     </>

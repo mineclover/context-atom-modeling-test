@@ -6,6 +6,8 @@ export interface UserActionPayloadMap {
     rememberMe?: boolean;
   };
   'user/logout': void;
+  'user/refresh-session': void;
+  'user/clear-cache': void;
   'user/update-profile': {
     userId: string;
     data: Partial<{

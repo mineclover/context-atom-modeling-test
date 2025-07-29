@@ -66,10 +66,17 @@ export class ActionRegister<T extends ActionPayloadMap = ActionPayloadMap> {
     this.atomSetters.set(name, setter);
   }
 
-  // 파이프라인 실행
+  // 파이프라인 실행 - void 타입을 위한 오버로드
+  async dispatch<K extends keyof T>(
+    action: T[K] extends void ? K : never
+  ): Promise<void>;
   async dispatch<K extends keyof T>(
     action: K,
     payload: T[K]
+  ): Promise<void>;
+  async dispatch<K extends keyof T>(
+    action: K,
+    payload?: T[K]
   ): Promise<void> {
     const pipeline = this.pipelines.get(action);
     
@@ -78,7 +85,7 @@ export class ActionRegister<T extends ActionPayloadMap = ActionPayloadMap> {
       return;
     }
     
-    let modifiedPayload = payload;
+    let modifiedPayload = payload as T[K];
     const handlers = Array.from(pipeline.values());
     
     for (const { handler, config } of handlers) {

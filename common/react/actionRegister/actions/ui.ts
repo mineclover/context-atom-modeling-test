@@ -7,6 +7,7 @@ export interface UIActionPayloadMap {
   'ui/hide-modal': {
     modalId: string;
   };
+  'ui/hide-all-modals': void;
   'ui/show-toast': {
     type: 'success' | 'error' | 'warning' | 'info';
     message: string;
@@ -16,7 +17,10 @@ export interface UIActionPayloadMap {
       onClick: () => void;
     };
   };
+  'ui/hide-all-toasts': void;
   'ui/toggle-sidebar': void;
+  'ui/close-sidebar': void;
+  'ui/refresh-ui': void;
   'ui/set-theme': {
     theme: 'light' | 'dark' | 'system';
   };
@@ -24,4 +28,5 @@ export interface UIActionPayloadMap {
     route: string;
     params?: Record<string, any>;
   };
+  'ui/go-back': void;
 }
