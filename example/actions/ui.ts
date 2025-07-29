@@ -22,8 +22,9 @@ export interface UIActionPayloadMap {
   'ui/close-sidebar': void;
   'ui/refresh-ui': void;
   'ui/set-theme': {
-    theme: 'light' | 'dark' | 'system';
+    theme: 'light' | 'dark';
   };
+  'ui/toggle-theme': void;
   'ui/navigate': {
     route: string;
     params?: Record<string, any>;

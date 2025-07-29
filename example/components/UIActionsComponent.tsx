@@ -58,11 +58,14 @@ export const UIActionsComponent: React.FC = () => {
           <TouchableOpacity 
             style={[styles.button, styles.buttonSmall]} 
             onPress={() => {
-              console.log('Button clicked: set-theme');
-              actions.setTheme('dark');
+              console.log('Button clicked: toggle-theme');
+              const newTheme = uiState.currentTheme === 'light' ? 'dark' : 'light';
+              actions.setTheme(newTheme);
             }}
           >
-            <Text style={styles.buttonText}>다크 테마</Text>
+            <Text style={styles.buttonText}>
+              {uiState.currentTheme === 'light' ? '🌙 다크' : '☀️ 라이트'}
+            </Text>
           </TouchableOpacity>
           
           <TouchableOpacity 

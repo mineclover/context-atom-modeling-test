@@ -488,13 +488,15 @@ const IntegratedUIActionsComponent: React.FC = () => {
   // UI 상태 관리
   const [modalVisible, setModalVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'system'>('light');
+  const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('light');
   const [toastVisible, setToastVisible] = useState(false);
   const [toastData, setToastData] = useState<{
     type: 'success' | 'error' | 'warning' | 'info';
     message: string;
     duration?: number;
   } | null>(null);
+  const toastSlideAnim = useRef(new Animated.Value(-100)).current;
+  const sidebarSlideAnim = useRef(new Animated.Value(280)).current;
 
   // UI 액션 핸들러들
   useActionHandler('ui/show-modal', (payload) => {
@@ -517,7 +519,27 @@ const IntegratedUIActionsComponent: React.FC = () => {
       status: 'success',
       message: '사이드바 토글됨'
     });
-    setSidebarVisible(prev => !prev);
+    
+    if (!sidebarVisible) {
+      // 사이드바 열기
+      setSidebarVisible(true);
+      Animated.timing(sidebarSlideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // 사이드바 닫기
+      Animated.timing(sidebarSlideAnim, {
+        toValue: 280,
+        duration: 300,
+        useNativeDriver: true,
+      }).start((finished) => {
+        if (finished) {
+          setSidebarVisible(false);
+        }
+      });
+    }
   });
 
   useActionHandler('ui/set-theme', (payload) => {
@@ -532,6 +554,18 @@ const IntegratedUIActionsComponent: React.FC = () => {
     setCurrentTheme(payload.theme);
   });
 
+  useActionHandler('ui/toggle-theme', () => {
+    console.log('UI Handler: toggle-theme called');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    addLog({ 
+      action: 'ui/toggle-theme', 
+      type: 'ui', 
+      status: 'success',
+      message: `테마 토글: ${currentTheme} → ${newTheme}`
+    });
+    setCurrentTheme(newTheme);
+  });
+
   useActionHandler('ui/show-toast', (payload) => {
     console.log('UI Handler: show-toast called', payload);
     addLog({ 
@@ -544,10 +578,27 @@ const IntegratedUIActionsComponent: React.FC = () => {
     setToastData(payload);
     setToastVisible(true);
     
+    // 슬라이드 인 애니메이션
+    Animated.timing(toastSlideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    
     // 토스트 자동 숨김 처리
     const duration = payload.duration || 3000;
     setTimeout(() => {
-      setToastVisible(false);
+      // 슬라이드 아웃 애니메이션
+      Animated.timing(toastSlideAnim, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+      }).start((finished) => {
+        if (finished) {
+          setToastVisible(false);
+          toastSlideAnim.setValue(-100); // 다음 토스트를 위해 초기값으로 리셋
+        }
+      });
     }, duration);
   });
 
@@ -563,14 +614,38 @@ const IntegratedUIActionsComponent: React.FC = () => {
     setModalVisible(false);
   });
 
+  // 테마별 스타일 정의
+  const themeStyles = {
+    light: {
+      background: '#ffffff',
+      text: '#1f2937',
+      statusBackground: '#f3f4f6',
+      statusText: '#4b5563',
+    },
+    dark: {
+      background: '#1f2937',
+      text: '#f9fafb',
+      statusBackground: '#374151',
+      statusText: '#d1d5db',
+    },
+  };
+
+  const currentThemeStyles = themeStyles[currentTheme];
+
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>UI 액션 테스트</Text>
+    <View style={[styles.section, { backgroundColor: currentThemeStyles.background }]}>
+      <Text style={[styles.sectionTitle, { color: currentThemeStyles.text }]}>UI 액션 테스트</Text>
       
-      <View style={styles.uiStatus}>
-        <Text style={styles.statusText}>테마: {currentTheme}</Text>
-        <Text style={styles.statusText}>사이드바: {sidebarVisible ? '열림 🔓' : '닫힘 🔒'}</Text>
-        <Text style={styles.statusText}>모달: {modalVisible ? '표시중 👁️' : '숨김 🙈'}</Text>
+      <View style={[styles.uiStatus, { backgroundColor: currentThemeStyles.statusBackground }]}>
+        <Text style={[styles.statusText, { color: currentThemeStyles.statusText }]}>
+          테마: {currentTheme} {currentTheme === 'dark' ? '🌙' : '☀️'}
+        </Text>
+        <Text style={[styles.statusText, { color: currentThemeStyles.statusText }]}>
+          사이드바: {sidebarVisible ? '열림 🔓' : '닫힘 🔒'}
+        </Text>
+        <Text style={[styles.statusText, { color: currentThemeStyles.statusText }]}>
+          모달: {modalVisible ? '표시중 👁️' : '숨김 🙈'}
+        </Text>
       </View>
 
       <View style={styles.buttonRow}>
@@ -603,11 +678,13 @@ const IntegratedUIActionsComponent: React.FC = () => {
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
           onPress={() => {
-            console.log('Button clicked: set-theme');
-            action.dispatch('ui/set-theme', { theme: 'dark' });
+            console.log('Button clicked: toggle-theme');
+            action.dispatch('ui/toggle-theme');
           }}
         >
-          <Text style={styles.buttonText}>다크 테마</Text>
+          <Text style={styles.buttonText}>
+            {currentTheme === 'light' ? '🌙 다크' : '☀️ 라이트'}
+          </Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -635,16 +712,79 @@ const IntegratedUIActionsComponent: React.FC = () => {
         </View>
       )}
 
+      {/* 사이드바 */}
+      {sidebarVisible && (
+        <Animated.View style={[
+          styles.sidebar, 
+          { 
+            backgroundColor: currentTheme === 'dark' ? '#374151' : '#f8f9fa',
+            transform: [{ translateX: sidebarSlideAnim }]
+          }
+        ]}>
+          <View style={styles.sidebarHeader}>
+            <Text style={[
+              styles.sidebarTitle, 
+              { color: currentTheme === 'dark' ? '#f9fafb' : '#1f2937' }
+            ]}>
+              🚀 사이드바
+            </Text>
+            <TouchableOpacity 
+              style={styles.sidebarCloseButton}
+              onPress={() => action.dispatch('ui/toggle-sidebar')}
+            >
+              <Text style={styles.sidebarCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.sidebarContent}>
+            <Text style={[
+              styles.sidebarText,
+              { color: currentTheme === 'dark' ? '#d1d5db' : '#4b5563' }
+            ]}>
+              현재 테마: {currentTheme}
+            </Text>
+            <Text style={[
+              styles.sidebarText,
+              { color: currentTheme === 'dark' ? '#d1d5db' : '#4b5563' }
+            ]}>
+              사이드바가 성공적으로 표시되었습니다! 🎉
+            </Text>
+            
+            <TouchableOpacity 
+              style={[styles.button, { marginTop: 15 }]}
+              onPress={() => {
+                action.dispatch('ui/show-toast', {
+                  type: 'info',
+                  message: '사이드바에서 토스트 실행!',
+                  duration: 2000
+                });
+              }}
+            >
+              <Text style={styles.buttonText}>사이드바에서 토스트</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* Toast */}
       {toastVisible && toastData && (
         <Animated.View 
           style={[
             styles.toast, 
-            { backgroundColor: toastData.type === 'success' ? '#4CAF50' : 
+            { 
+              backgroundColor: toastData.type === 'success' ? '#4CAF50' : 
                               toastData.type === 'error' ? '#F44336' : 
-                              toastData.type === 'warning' ? '#FF9800' : '#2196F3' }
+                              toastData.type === 'warning' ? '#FF9800' : '#2196F3',
+              transform: [{ translateY: toastSlideAnim }]
+            }
           ]}
         >
-          <Text style={styles.toastText}>{toastData.message}</Text>
+          <Text style={styles.toastText}>
+            {toastData.type === 'success' ? '✅ ' : 
+             toastData.type === 'error' ? '❌ ' : 
+             toastData.type === 'warning' ? '⚠️ ' : 'ℹ️ '}
+            {toastData.message}
+          </Text>
         </Animated.View>
       )}
     </View>
@@ -1019,6 +1159,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     fontWeight: '600',
+  },
+  sidebar: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 280,
+    height: '100%',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    zIndex: 1000,
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  sidebarTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  sidebarCloseButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sidebarCloseText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  sidebarContent: {
+    flex: 1,
+  },
+  sidebarText: {
+    fontSize: 14,
+    marginBottom: 10,
+    lineHeight: 20,
   },
 });
 
