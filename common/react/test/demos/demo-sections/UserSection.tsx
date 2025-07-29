@@ -1,8 +1,8 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
-import { UserProvider } from '../../contexts/userContext'
-import { UserDisplay } from '../../components/UserDisplay'
+import { StyleSheet, Text, View } from 'react-native'
 import { UserController } from '../../components/UserController'
+import { UserDisplay } from '../../components/UserDisplay'
+import { UserProvider } from '../../contexts/userContext'
 
 export const UserSection: React.FC = () => {
   return (
