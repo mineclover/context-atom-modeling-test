@@ -1,30 +1,11 @@
-import { useEffect, useId, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useAtom, WritableAtom } from 'jotai';
-import { ActionHandler, HandlerConfig, ActionPayloadMap } from '../core';
-import { useAction } from './ActionContext';
 
-// Hook: Action Handler 등록
-export const useActionHandler = <T extends ActionPayloadMap, K extends keyof T>(
-  action: K,
-  handler: ActionHandler<T[K]>,
-  config?: HandlerConfig
-) => {
-  const actionRegister = useAction<T>();
-  const componentId = useId();
-  
-  useEffect(() => {
-    const unregister = actionRegister.register(
-      action,
-      handler,
-      { ...config, id: config?.id || componentId }
-    );
-    
-    return unregister;
-  }, [action, handler, config, componentId, actionRegister]);
-};
+// 이 파일의 훅들은 createActionContext로 생성된 useAction과 함께 사용해야 합니다.
+// 사용 시 createActionContext로 생성된 useAction을 전달받아 사용하세요.
 
 // Hook: Atom과 Action 통합
-export const useAtomAction = <T,>(
+export const createUseAtomAction = (useAction: () => any) => <T,>(
   atom: WritableAtom<T, any, any>,
   actionName: string
 ) => {
@@ -41,16 +22,4 @@ export const useAtomAction = <T,>(
   }, [actionName, setValue, actionRegister]);
   
   return value;
-};
-
-// Hook: Action Dispatcher
-export const useActionDispatcher = <T extends ActionPayloadMap = ActionPayloadMap>() => {
-  const actionRegister = useAction<T>();
-  
-  return useCallback(<K extends keyof T>(
-    action: K,
-    payload: T[K]
-  ) => {
-    return actionRegister.dispatch(action, payload);
-  }, [actionRegister]);
 };
