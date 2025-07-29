@@ -1,4 +1,4 @@
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 import { Button, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function Index() {
@@ -10,25 +10,36 @@ export default function Index() {
       <Text style={styles.sectionTitle}>🌐 웹뷰 페이지</Text>
       <View style={styles.buttonContainer}>
         <Button
-          title="네이버 웹뷰"
-          onPress={() => router.push('/webview/naver')}
+          title="웹뷰 목록 보기"
+          onPress={() => router.push('/webview')}
         />
       </View>
-
-      <View style={styles.buttonContainer}>
+      <View style={styles.subButtonContainer}>
         <Button
-          title="구글 웹뷰"
+          title="네이버 (직접)"
+          onPress={() => router.push('/webview/naver')}
+          color="#2ecc71"
+        />
+        <Button
+          title="구글 (직접)"
           onPress={() => router.push('/webview/google')}
-          color="#6c757d"
+          color="#3498db"
         />
       </View>
       
       <Text style={styles.sectionTitle}>🎮 데모 페이지</Text>
       <View style={styles.buttonContainer}>
         <Button
-          title="프로세스 시각화 데모"
-          onPress={() => router.push('/process-demo')}
+          title="데모 목록 보기"
+          onPress={() => router.push('/demos')}
           color="#28a745"
+        />
+      </View>
+      <View style={styles.buttonContainer}>
+        <Button
+          title="프로세스 시각화 데모 (직접)"
+          onPress={() => router.push('/demos/process')}
+          color="#22c55e"
         />
       </View>
       
@@ -38,31 +49,33 @@ export default function Index() {
       </Text>
       <View style={styles.buttonContainer}>
         <Button
-          title="🧪 종합 테스트 뷰어"
-          onPress={() => router.push('/comprehensive-test')}
+          title="테스트 목록 보기"
+          onPress={() => router.push('/tests')}
           color="#6366f1"
         />
       </View>
       <View style={styles.buttonContainer}>
         <Button
-          title="📊 전체 Context 테스트"
-          onPress={() => router.push('/context-test')}
+          title="🧪 종합 테스트 뷰어 (직접)"
+          onPress={() => router.push('/tests/comprehensive')}
+          color="#818cf8"
+        />
+      </View>
+      <View style={styles.buttonContainer}>
+        <Button
+          title="📊 전체 Context 테스트 (직접)"
+          onPress={() => router.push('/tests/context')}
           color="#3b82f6"
         />
       </View>
    
       <View style={styles.buttonContainer}>
         <Button
-          title="🔢 기본 Jotai 테스트"
-          onPress={() => router.push('/jotai-test')}
+          title="🔢 기본 Jotai 테스트 (직접)"
+          onPress={() => router.push('/tests/jotai')}
           color="#9c27b0"
         />
       </View>
-      
-      <Text style={styles.sectionTitle}>📝 기존 링크 (레거시)</Text>
-      <Link href="/webview" style={styles.link}>
-        <Text style={styles.linkText}>기존 웹뷰 페이지</Text>
-      </Link>
     </ScrollView>
   );
 }
@@ -109,12 +122,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     minWidth: 250,
   },
-  link: {
-    marginTop: 10,
-  },
-  linkText: {
-    color: "#007AFF",
-    fontSize: 16,
-    textDecorationLine: "underline",
+  subButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 10,
   },
 });

@@ -1,15 +1,15 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Widget from '../common/react/test/components/Widget';
-import { CounterProvider } from '../common/react/test/contexts/counterContext';
+import Widget from '../../common/react/test/components/Widget';
+import { CounterProvider } from '../../common/react/test/contexts/counterContext';
 
 export default function JotaiTestScreen() {
   return (
     <>
       <Stack.Screen 
         options={{
-          title: '🔢 Jotai 기본 테스트',
+          title: '기본 Jotai 테스트',
           headerShown: true,
         }} 
       />
