@@ -1,54 +1,157 @@
 # Action Register Example
 
-이 예제는 모듈화된 Action Register 시스템의 사용법을 보여줍니다.
+이 예제는 **Pure View + View Animation Data + View Action 모듈화** 구조를 적용한 Action Register 시스템을 보여줍니다.
 
-## 주요 특징
+## 📁 모듈화 구조
 
-### 1. 타입 안전성
-- TypeScript를 통한 완전한 타입 추론
-- 컴파일 타임에 잘못된 액션 이름이나 payload 감지
-- IDE 자동완성 지원
-
-### 2. 모듈화된 구조
+### 🎯 순수 뷰 분리 아키텍처
 ```
-actionRegister/
-├── core/                 # 핵심 ActionRegister 클래스
-│   ├── ActionRegister.ts
-│   ├── types.ts
-│   └── index.ts
-├── react/               # React 통합
-│   ├── ActionContext.tsx
-│   ├── hooks.ts
-│   └── index.ts
-├── actions/             # 액션 타입 정의
-│   ├── user.ts
-│   ├── ui.ts
-│   ├── data.ts
-│   └── index.ts
-└── index.ts
+example/
+├── ModularizedExample.tsx        # 메인 애플리케이션
+├── contexts/                     # createActionContext를 활용한 컨텍스트
+│   ├── AnimationContext.tsx      # 애니메이션 데이터 & 액션 관리
+│   └── ViewActionContext.tsx     # 뷰 액션 & 상태 관리
+├── components/                   # 컴포넌트 계층
+│   ├── pure/                     # 순수 뷰 컴포넌트
+│   │   ├── StatusIndicator.tsx   # 상태 표시 (애니메이션 분리)
+│   │   ├── ActionDashboard.tsx   # 대시보드 (로직 분리)
+│   │   ├── Toast.tsx             # 토스트 (애니메이션 분리)
+│   │   └── Modal.tsx             # 모달 (상태 분리)
+│   ├── UserActionsComponent.tsx  # 사용자 비즈니스 로직
+│   ├── UIActionsComponent.tsx    # UI 비즈니스 로직
+│   └── DashboardComponent.tsx    # 대시보드 비즈니스 로직
+├── modules/                      # 비즈니스 로직 모듈
+│   ├── UserActionModule.tsx      # 사용자 액션 로직
+│   └── UIActionModule.tsx        # UI 액션 로직
+└── actions/                      # 액션 타입 정의
+    ├── extended.ts               # 확장 액션 타입
+    └── ...
 ```
 
-### 3. 파이프라인 시스템
-- 우선순위 기반 핸들러 실행
-- 블로킹/논블로킹 핸들러 지원
-- Payload 변경 및 파이프라인 제어
+## 🏗️ 핵심 모듈화 원칙
 
-### 4. React 통합
-- Context API를 통한 전역 상태 관리
-- Custom hooks로 간편한 사용
-- 자동 cleanup과 메모리 누수 방지
+### 1. Pure View Components
+- **책임**: 오직 UI 렌더링만 담당
+- **특징**: 상태 관리 로직, 비즈니스 로직 완전 분리
+- **예시**: `StatusIndicator`, `Toast`, `Modal`
 
-## 사용 예시
+### 2. View Animation Hooks (createActionContext)
+- **책임**: 애니메이션 상태 관리 및 액션 처리 (hooks 기반)
+- **구조**: `AnimationContext.tsx`에서 hooks로 애니메이션 로직 관리
+- **특징**: Provider 없이 hooks만으로 애니메이션 시스템 구축
 
-### 기본 설정
+### 3. View Action Hooks (createActionContext)
+- **책임**: 뷰 상태 관리 및 로깅 시스템 (hooks 기반)
+- **구조**: `ViewActionContext.tsx`에서 hooks로 상태와 액션 분리
+- **특징**: Context 없이 hooks만으로 상태 관리와 액션 디스패치
+
+### 4. Business Logic Modules
+- **책임**: 도메인별 비즈니스 로직 처리
+- **구조**: `UserActionModule`, `UIActionModule`
+- **특징**: 액션 핸들러와 상태 관리 로직 캡슐화
+
+## 🔧 Hooks 기반 사용법
+
+### 1. View State 관리
 ```tsx
-import { ActionProvider } from '../common/react/actionRegister';
+import { useViewState, useViewActionHandlers } from '../contexts/ViewActionContext';
+
+function MyComponent() {
+  // hooks로 상태와 액션 관리
+  const viewState = useViewState();
+  
+  // 액션 핸들러 설정
+  useViewActionHandlers(viewState);
+  
+  // 상태 사용
+  const logs = viewState.state.logs;
+  const status = viewState.actions.getComponentStatus('my-component');
+  
+  return <div>{/* UI */}</div>;
+}
+```
+
+### 2. View Actions 디스패치
+```tsx
+import { useViewActions } from '../contexts/ViewActionContext';
+
+function ActionButton() {
+  const viewActions = useViewActions();
+  
+  const handleClick = () => {
+    viewActions.addLog({
+      action: 'button-click',
+      type: 'user',
+      status: 'success',
+      message: '버튼 클릭됨'
+    });
+  };
+  
+  return <button onClick={handleClick}>Click</button>;
+}
+```
+
+### 3. 애니메이션 관리
+```tsx
+import { useAnimationState, useAnimationHandlers, useAnimationAction } from '../contexts/AnimationContext';
+
+function AnimatedComponent() {
+  const { actions } = useAnimationState();
+  const animationAction = useAnimationAction();
+  
+  // 애니메이션 핸들러 설정 (앱 레벨에서 한 번만)
+  // useAnimationHandlers();
+  
+  // 애니메이션 값 생성
+  const fadeAnim = actions.createFadeAnim('my-fade');
+  
+  // 애니메이션 실행
+  const startAnimation = () => {
+    animationAction.dispatch('animation/fade', {
+      id: 'my-fade',
+      toValue: 1,
+      duration: 300
+    });
+  };
+  
+  return <Animated.View style={{ opacity: fadeAnim }} />;
+}
+```
+
+## 🏗️ 아키텍처 특징
+
+### 완전한 Hooks 기반 아키텍처
+- **Context 제거**: Provider/Consumer 패턴 대신 hooks만 사용
+- **독립적 상태**: 각 컴포넌트가 필요한 상태만 hooks로 관리
+- **createActionContext**: 타입 안전한 액션 시스템만 활용
+- **중앙화된 핸들러**: 앱 레벨에서 한 번만 핸들러 설정
+
+### 관심사 분리 원칙
+- **Pure View**: UI 렌더링만 담당, 로직 완전 분리
+- **Hooks State**: 컴포넌트별 독립적인 상태 관리
+- **Action Handlers**: 중앙화된 액션 처리 로직
+- **Business Logic**: 도메인별 비즈니스 로직 모듈화
+
+## 🚀 사용법
+
+### 기본 설정 (Provider 최소화)
+```tsx
+import { createActionContext } from '../common/react/actionRegister/react/ActionContext';
+import { useAnimationHandlers, useViewActionHandlers } from './contexts';
+
+const { Provider } = createActionContext<ExtendedActionPayloadMap>();
 
 function App() {
+  const viewState = useViewState();
+  
+  // 앱 레벨에서 한 번만 핸들러 설정
+  useViewActionHandlers(viewState);
+  useAnimationHandlers();
+
   return (
-    <ActionProvider>
+    <Provider>
       <YourComponents />
-    </ActionProvider>
+    </Provider>
   );
 }
 ```

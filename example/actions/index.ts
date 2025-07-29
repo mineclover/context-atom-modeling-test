@@ -14,3 +14,4 @@ export interface AppActionPayloadMap extends
 export * from './data';
 export * from './ui';
 export * from './user';
+export * from './extended';
