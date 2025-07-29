@@ -1,4 +1,4 @@
-import { BaseActionPayloadMap } from '../../common/react/actionRegister/core/types';
+import { BaseActionPayloadMap } from '@context-action/core';
 import { DataActionPayloadMap } from './data';
 import { UIActionPayloadMap } from './ui';
 import { UserActionPayloadMap } from './user';

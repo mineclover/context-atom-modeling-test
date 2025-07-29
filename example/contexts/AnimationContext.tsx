@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Animated } from 'react-native';
-import { createActionContext } from '../../common/react/actionRegister/react/ActionContext';
+import { createActionContext } from '@context-action/react';
 
 // 애니메이션 액션 페이로드 맵
 export interface AnimationActionPayloadMap {

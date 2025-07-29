@@ -133,7 +133,7 @@ function AnimatedComponent() {
 
 ### 기본 설정 (Provider 최소화)
 ```tsx
-import { createActionContext } from '../common/react/actionRegister/react/ActionContext';
+import { createActionContext } from '@context-action/react';
 import { useAnimationHandlers, useViewState } from './contexts';
 
 const { Provider } = createActionContext<ExtendedActionPayloadMap>();
@@ -154,7 +154,7 @@ function App() {
 
 ### 액션 핸들러 등록
 ```tsx
-import { useActionHandler } from '../common/react/actionRegister';
+import { useActionHandler } from '@context-action/react';
 
 function LoginComponent() {
   useActionHandler('user/login', async (payload, controller) => {
@@ -178,7 +178,7 @@ function LoginComponent() {
 
 ### 액션 디스패치
 ```tsx
-import { useAction } from '../common/react/actionRegister';
+import { useAction } from '@context-action/react';
 
 function Component() {
   const action = useAction();

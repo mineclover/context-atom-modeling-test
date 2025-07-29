@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, InteractionManager, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { createActionContext } from '../common/react/actionRegister/react/ActionContext';
+import { createActionContext } from '@context-action/react';
 import { AppActionPayloadMap } from './actions';
 
 // 추가 Provider들을 위한 wrapper 생성

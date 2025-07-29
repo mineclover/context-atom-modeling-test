@@ -5,7 +5,7 @@ import { useViewState } from './contexts/ViewActionContext';
 import { DashboardComponent } from './components/DashboardComponent';
 import { UserActionsComponent } from './components/UserActionsComponent';
 import { UIActionsComponent } from './components/UIActionsComponent';
-import { createActionContext } from '../common/react/actionRegister/react/ActionContext';
+import { createActionContext } from '@context-action/react';
 import { ExtendedActionPayloadMap } from './actions/extended';
 
 // createActionContext를 사용한 앱 레벨 Provider

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createActionContext } from '../../common/react/actionRegister/react/ActionContext';
+import { createActionContext } from '@context-action/react';
 import { AppActionPayloadMap } from '../actions';
 
 // 뷰 액션 페이로드 맵 (기존 앱 액션을 확장)

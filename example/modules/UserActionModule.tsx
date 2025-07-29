@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { InteractionManager } from 'react-native';
 import { useViewActions } from '../contexts/ViewActionContext';
-import { createActionContext } from '../../common/react/actionRegister/react/ActionContext';
+import { createActionContext } from '@context-action/react';
 import { AppActionPayloadMap } from '../actions';
 
 // createActionContext를 사용한 사용자 액션 컨텍스트 생성

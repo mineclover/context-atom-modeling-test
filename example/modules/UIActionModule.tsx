@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { createActionContext } from '../../common/react/actionRegister/react/ActionContext';
+import { createActionContext } from '@context-action/react';
 import { AppActionPayloadMap } from '../actions';
 
 // createActionContext를 사용한 UI 액션 컨텍스트 생성
