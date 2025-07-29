@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, InteractionManager, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { AppActionPayloadMap } from '../common/react/actionRegister';
 import { createActionContext } from '../common/react/actionRegister/react/ActionContext';
+import { AppActionPayloadMap } from './actions';
 
 // 타입 안전한 ActionContext 생성
 const { Provider: ActionProvider, useAction, useActionHandler } = createActionContext<AppActionPayloadMap>();
