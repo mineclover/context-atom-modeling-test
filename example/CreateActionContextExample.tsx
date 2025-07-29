@@ -1,29 +1,335 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, InteractionManager, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppActionPayloadMap } from '../common/react/actionRegister';
 import { createActionContext } from '../common/react/actionRegister/react/ActionContext';
 
 // 타입 안전한 ActionContext 생성
 const { Provider: ActionProvider, useAction, useActionHandler } = createActionContext<AppActionPayloadMap>();
 
+// 액션 로그 타입 정의
+type ActionLog = {
+  id: string;
+  action: string;
+  type: 'user' | 'ui' | 'data';
+  status: 'pending' | 'success' | 'error';
+  timestamp: Date;
+  message?: string;
+  payload?: any;
+};
+
+// 글로벌 상태 관리를 위한 Context
+const TestContext = React.createContext<{
+  logs: ActionLog[];
+  addLog: (log: ActionLog | Omit<ActionLog, 'id' | 'timestamp'>) => void;
+  updateLog: (id: string, updates: Partial<ActionLog>) => void;
+  clearLogs: () => void;
+} | null>(null);
+
+const TestProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [logs, setLogs] = useState<ActionLog[]>([]);
+
+  const addLog = (log: ActionLog | Omit<ActionLog, 'id' | 'timestamp'>) => {
+    let newLog: ActionLog;
+    if ('id' in log && 'timestamp' in log) {
+      newLog = log as ActionLog;
+    } else {
+      newLog = {
+        ...log,
+        id: `${Date.now()}-${Math.random()}`,
+        timestamp: new Date(),
+      } as ActionLog;
+    }
+    setLogs(prev => [newLog, ...prev].slice(0, 50)); // 최대 50개 로그 유지
+  };
+
+  const updateLog = (id: string, updates: Partial<ActionLog>) => {
+    setLogs(prev => prev.map(log => 
+      log.id === id ? { ...log, ...updates } : log
+    ));
+  };
+
+  const clearLogs = () => setLogs([]);
+
+  return (
+    <TestContext.Provider value={{ logs, addLog, updateLog, clearLogs }}>
+      {children}
+    </TestContext.Provider>
+  );
+};
+
+const useTestContext = () => {
+  const context = React.useContext(TestContext);
+  if (!context) throw new Error('useTestContext must be used within TestProvider');
+  return context;
+};
+
+// 상태 인디케이터 컴포넌트
+const StatusIndicator: React.FC<{ 
+  status: 'idle' | 'loading' | 'success' | 'error';
+  label: string;
+}> = ({ status, label }) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const loopAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const pulseAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    // 기존 애니메이션 중단
+    if (loopAnimationRef.current) {
+      loopAnimationRef.current.stop();
+      loopAnimationRef.current = null;
+    }
+    if (pulseAnimationRef.current) {
+      pulseAnimationRef.current.stop();
+      pulseAnimationRef.current = null;
+    }
+
+    // 애니메이션을 다음 프레임에서 실행
+    requestAnimationFrame(() => {
+      if (status === 'loading') {
+        // 로딩 애니메이션 (무한 루프)
+        const loopAnimation = Animated.loop(
+          Animated.sequence([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(fadeAnim, {
+              toValue: 0.3,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ])
+        );
+        
+        loopAnimationRef.current = loopAnimation;
+        loopAnimation.start();
+      } else {
+        // 페이드 애니메이션
+        Animated.timing(fadeAnim, {
+          toValue: status === 'idle' ? 0.3 : 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+        
+        // 성공/에러 시 펄스 애니메이션
+        if (status === 'success' || status === 'error') {
+          const pulseAnimation = Animated.sequence([
+            Animated.timing(scaleAnim, {
+              toValue: 1.2,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scaleAnim, {
+              toValue: 1,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+          ]);
+          
+          pulseAnimationRef.current = pulseAnimation;
+          pulseAnimation.start((finished) => {
+            if (finished) {
+              pulseAnimationRef.current = null;
+            }
+          });
+        }
+      }
+    });
+  }, [status, fadeAnim, scaleAnim]);
+
+  // 컴포넌트 언마운트 시 애니메이션 정리
+  useEffect(() => {
+    return () => {
+      if (loopAnimationRef.current) {
+        loopAnimationRef.current.stop();
+        loopAnimationRef.current = null;
+      }
+      if (pulseAnimationRef.current) {
+        pulseAnimationRef.current.stop();
+        pulseAnimationRef.current = null;
+      }
+    };
+  }, []);
+
+  const getStatusColor = () => {
+    switch (status) {
+      case 'loading': return '#FF9800';
+      case 'success': return '#4CAF50';
+      case 'error': return '#F44336';
+      default: return '#9E9E9E';
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (status) {
+      case 'loading': return '⏳';
+      case 'success': return '✅';
+      case 'error': return '❌';
+      default: return '⚪';
+    }
+  };
+
+  return (
+    <Animated.View 
+      style={[
+        styles.statusIndicator, 
+        { 
+          backgroundColor: getStatusColor(),
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }]
+        }
+      ]}
+    >
+      <Text style={styles.statusIcon}>{getStatusIcon()}</Text>
+      <Text style={styles.statusLabel}>{label}</Text>
+    </Animated.View>
+  );
+};
+
+// 실시간 대시보드 컴포넌트
+const ActionDashboard: React.FC = () => {
+  const { logs, clearLogs } = useTestContext();
+  const [stats, setStats] = useState({
+    total: 0,
+    success: 0,
+    error: 0,
+    pending: 0,
+  });
+
+  useEffect(() => {
+    // 통계 계산을 다음 프레임으로 지연하여 성능 최적화
+    requestAnimationFrame(() => {
+      const newStats = logs.reduce((acc, log) => {
+        acc.total++;
+        acc[log.status]++;
+        return acc;
+      }, { total: 0, success: 0, error: 0, pending: 0 });
+      setStats(newStats);
+    });
+  }, [logs]);
+
+  return (
+    <View style={styles.dashboard}>
+      <View style={styles.dashboardHeader}>
+        <Text style={styles.dashboardTitle}>실시간 액션 대시보드</Text>
+        <TouchableOpacity style={styles.clearButton} onPress={clearLogs}>
+          <Text style={styles.clearButtonText}>클리어</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.statsContainer}>
+        <View style={[styles.statCard, { backgroundColor: '#2196F3' }]}>
+          <Text style={styles.statNumber}>{stats.total}</Text>
+          <Text style={styles.statLabel}>총 액션</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: '#4CAF50' }]}>
+          <Text style={styles.statNumber}>{stats.success}</Text>
+          <Text style={styles.statLabel}>성공</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: '#F44336' }]}>
+          <Text style={styles.statNumber}>{stats.error}</Text>
+          <Text style={styles.statLabel}>실패</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: '#FF9800' }]}>
+          <Text style={styles.statNumber}>{stats.pending}</Text>
+          <Text style={styles.statLabel}>진행중</Text>
+        </View>
+      </View>
+
+      <ScrollView style={styles.logContainer} showsVerticalScrollIndicator={false}>
+        {logs.map((log) => {
+          const borderColor = log.status === 'success' ? '#4CAF50' : 
+                            log.status === 'error' ? '#F44336' : '#FF9800';
+          return (
+            <View key={log.id} style={[styles.logItem, { borderLeftColor: borderColor }]}>
+              <View style={styles.logHeader}>
+                <Text style={styles.logAction}>{log.action}</Text>
+                <Text style={styles.logType}>{log.type.toUpperCase()}</Text>
+                <Text style={styles.logTime}>
+                  {log.timestamp.toLocaleTimeString()}
+                </Text>
+              </View>
+              {log.message && (
+                <Text style={styles.logMessage}>{log.message}</Text>
+              )}
+              {log.payload && (
+                <Text style={styles.logPayload}>
+                  {JSON.stringify(log.payload, null, 2)}
+                </Text>
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+};
+
 // 사용자 관련 컴포넌트
 const UserActionsComponent: React.FC = () => {
   const action = useAction();
+  const { addLog, updateLog } = useTestContext();
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
   const [userProfile, setUserProfile] = useState({ name: 'John Doe', email: 'john@example.com' });
+  const [actionResults, setActionResults] = useState<Record<string, 'idle' | 'loading' | 'success' | 'error'>>({});
+
+  const handleActionStart = (actionName: string, payload?: any): string => {
+    const newLog: ActionLog = {
+      id: `${Date.now()}-${Math.random()}`,
+      timestamp: new Date(),
+      action: actionName,
+      type: 'user',
+      status: 'pending',
+      message: '액션 시작',
+      payload
+    };
+    addLog(newLog);
+    setActionResults(prev => ({ ...prev, [actionName]: 'loading' }));
+    setIsLoading(prev => ({ ...prev, [actionName]: true }));
+    return newLog.id;
+  };
+
+  const handleActionEnd = (actionName: string, logId: string, success: boolean, message?: string) => {
+    // 상태 업데이트를 배치로 처리하여 렌더링 최적화
+    requestAnimationFrame(() => {
+      updateLog(logId, {
+        status: success ? 'success' : 'error',
+        message: message || (success ? '액션 완료' : '액션 실패')
+      });
+      
+      setActionResults(prev => ({ ...prev, [actionName]: success ? 'success' : 'error' }));
+      setIsLoading(prev => ({ ...prev, [actionName]: false }));
+      
+      // InteractionManager를 사용하여 상호작용이 완료된 후 상태 초기화
+      const handle = InteractionManager.createInteractionHandle();
+      
+      // 3초 후 상태 초기화 (React Native 권장 방법)
+      const timeoutId = setTimeout(() => {
+        InteractionManager.clearInteractionHandle(handle);
+        requestAnimationFrame(() => {
+          setActionResults(prev => ({ ...prev, [actionName]: 'idle' }));
+        });
+      }, 3000);
+
+      // 컴포넌트 언마운트 시 정리를 위한 반환
+      return () => {
+        clearTimeout(timeoutId);
+        InteractionManager.clearInteractionHandle(handle);
+      };
+    });
+  };
 
   // 로그인 핸들러
   useActionHandler('user/login', async (payload, controller) => {
-    console.log('로그인 시도:', payload);
-    
-    if (!payload.email || !payload.password) {
-      controller.abort('이메일과 비밀번호가 필요합니다');
-      return;
-    }
-    
-    setIsLoading(prev => ({ ...prev, login: true }));
+    const logId = handleActionStart('user/login', payload);
     
     try {
+      if (!payload.email || !payload.password) {
+        throw new Error('이메일과 비밀번호가 필요합니다');
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       await action.dispatch('ui/show-toast', {
@@ -32,131 +338,73 @@ const UserActionsComponent: React.FC = () => {
         duration: 3000
       });
       
-      console.log(`로그인 성공: ${payload.email}`);
+      handleActionEnd('user/login', logId, true, `로그인 성공: ${payload.email}`);
     } catch (error) {
-      controller.abort('로그인 실패');
-    } finally {
-      setIsLoading(prev => ({ ...prev, login: false }));
+      const errorMessage = error instanceof Error ? error.message : '로그인 실패';
+      handleActionEnd('user/login', logId, false, errorMessage);
+      controller.abort(errorMessage);
     }
   }, { priority: 10, blocking: true });
 
-  // 로그아웃 핸들러
-  useActionHandler('user/logout', async (_, controller) => {
-    console.log('로그아웃 처리');
-    setIsLoading(prev => ({ ...prev, logout: true }));
-    
+  // 기타 핸들러들 (축약)
+  useActionHandler('user/logout', async (_payload) => {
+    const logId = handleActionStart('user/logout');
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
       await action.dispatch('ui/show-toast', {
         type: 'info',
         message: '로그아웃 되었습니다',
         duration: 2000
       });
-    } finally {
-      setIsLoading(prev => ({ ...prev, logout: false }));
+      handleActionEnd('user/logout', logId, true);
+    } catch {
+      handleActionEnd('user/logout', logId, false);
     }
   });
 
-  // 세션 새로고침 핸들러
-  useActionHandler('user/refresh-session', async () => {
-    console.log('세션 새로고침');
-    setIsLoading(prev => ({ ...prev, refreshSession: true }));
-    
+  useActionHandler('user/refresh-session', async (_payload) => {
+    const logId = handleActionStart('user/refresh-session');
     try {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
       await action.dispatch('ui/show-toast', {
         type: 'success',
         message: '세션이 새로고침되었습니다',
         duration: 2000
       });
-    } finally {
-      setIsLoading(prev => ({ ...prev, refreshSession: false }));
+      handleActionEnd('user/refresh-session', logId, true);
+    } catch {
+      handleActionEnd('user/refresh-session', logId, false);
     }
   });
 
-  // 캐시 클리어 핸들러
-  useActionHandler('user/clear-cache', async () => {
-    console.log('사용자 캐시 클리어');
-    setIsLoading(prev => ({ ...prev, clearCache: true }));
-    
+  useActionHandler('user/clear-cache', async (_payload) => {
+    const logId = handleActionStart('user/clear-cache');
     try {
       await new Promise(resolve => setTimeout(resolve, 800));
-      
       await action.dispatch('ui/show-toast', {
         type: 'info',
         message: '사용자 캐시가 클리어되었습니다',
         duration: 2000
       });
-    } finally {
-      setIsLoading(prev => ({ ...prev, clearCache: false }));
+      handleActionEnd('user/clear-cache', logId, true);
+    } catch {
+      handleActionEnd('user/clear-cache', logId, false);
     }
   });
 
-  // 프로필 업데이트 핸들러
-  useActionHandler('user/update-profile', async (payload, controller) => {
-    console.log('프로필 업데이트:', payload);
-    setIsLoading(prev => ({ ...prev, updateProfile: true }));
-    
+  useActionHandler('user/update-profile', async (payload) => {
+    const logId = handleActionStart('user/update-profile', payload);
     try {
       await new Promise(resolve => setTimeout(resolve, 1200));
       setUserProfile(prev => ({ ...prev, ...payload.data }));
-      
       await action.dispatch('ui/show-toast', {
         type: 'success',
         message: '프로필이 업데이트되었습니다',
         duration: 2500
       });
+      handleActionEnd('user/update-profile', logId, true);
     } catch {
-      controller.abort('프로필 업데이트 실패');
-    } finally {
-      setIsLoading(prev => ({ ...prev, updateProfile: false }));
-    }
-  });
-
-  // 비밀번호 변경 핸들러
-  useActionHandler('user/change-password', async (payload, controller) => {
-    console.log('비밀번호 변경 요청');
-    setIsLoading(prev => ({ ...prev, changePassword: true }));
-    
-    try {
-      if (payload.currentPassword === payload.newPassword) {
-        controller.abort('새 비밀번호가 현재 비밀번호와 같습니다');
-        return;
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 1800));
-      
-      await action.dispatch('ui/show-toast', {
-        type: 'success',
-        message: '비밀번호가 변경되었습니다',
-        duration: 3000
-      });
-    } catch {
-      controller.abort('비밀번호 변경 실패');
-    } finally {
-      setIsLoading(prev => ({ ...prev, changePassword: false }));
-    }
-  });
-
-  // 이메일 인증 핸들러
-  useActionHandler('user/verify-email', async (payload, controller) => {
-    console.log('이메일 인증:', payload.token);
-    setIsLoading(prev => ({ ...prev, verifyEmail: true }));
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      await action.dispatch('ui/show-toast', {
-        type: 'success',
-        message: '이메일 인증이 완료되었습니다',
-        duration: 3000
-      });
-    } catch {
-      controller.abort('이메일 인증 실패');
-    } finally {
-      setIsLoading(prev => ({ ...prev, verifyEmail: false }));
+      handleActionEnd('user/update-profile', logId, false);
     }
   });
 
@@ -165,488 +413,187 @@ const UserActionsComponent: React.FC = () => {
       <Text style={styles.sectionTitle}>사용자 액션 테스트</Text>
       <Text style={styles.profileInfo}>현재 프로필: {userProfile.name} ({userProfile.email})</Text>
       
+      <View style={styles.statusGrid}>
+        <StatusIndicator status={actionResults['user/login'] || 'idle'} label="로그인" />
+        <StatusIndicator status={actionResults['user/logout'] || 'idle'} label="로그아웃" />
+        <StatusIndicator status={actionResults['user/refresh-session'] || 'idle'} label="세션" />
+        <StatusIndicator status={actionResults['user/clear-cache'] || 'idle'} label="캐시" />
+      </View>
+      
       <TouchableOpacity 
-        style={[styles.button, isLoading.login && styles.buttonDisabled]} 
+        style={[styles.button, isLoading['user/login'] && styles.buttonDisabled]} 
         onPress={() => action.dispatch('user/login', {
           email: 'user@example.com',
           password: 'password123',
           rememberMe: true
         })}
-        disabled={isLoading.login}
+        disabled={isLoading['user/login']}
       >
         <Text style={styles.buttonText}>
-          {isLoading.login ? '로그인 중...' : '로그인 테스트'}
+          {isLoading['user/login'] ? '로그인 중...' : '로그인 테스트'}
         </Text>
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.button, isLoading.logout && styles.buttonDisabled]} 
+        style={[styles.button, isLoading['user/logout'] && styles.buttonDisabled]} 
         onPress={() => action.dispatch('user/logout')}
-        disabled={isLoading.logout}
+        disabled={isLoading['user/logout']}
       >
         <Text style={styles.buttonText}>
-          {isLoading.logout ? '로그아웃 중...' : '로그아웃 테스트'}
+          {isLoading['user/logout'] ? '로그아웃 중...' : '로그아웃 테스트'}
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={[styles.button, isLoading.refreshSession && styles.buttonDisabled]} 
-        onPress={() => action.dispatch('user/refresh-session')}
-        disabled={isLoading.refreshSession}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading.refreshSession ? '새로고침 중...' : '세션 새로고침'}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.buttonRow}>
+        <TouchableOpacity 
+          style={[styles.button, styles.buttonSmall, isLoading['user/refresh-session'] && styles.buttonDisabled]} 
+          onPress={() => action.dispatch('user/refresh-session')}
+          disabled={isLoading['user/refresh-session']}
+        >
+          <Text style={styles.buttonText}>세션 새로고침</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.button, styles.buttonSmall, isLoading['user/clear-cache'] && styles.buttonDisabled]} 
+          onPress={() => action.dispatch('user/clear-cache')}
+          disabled={isLoading['user/clear-cache']}
+        >
+          <Text style={styles.buttonText}>캐시 클리어</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity 
-        style={[styles.button, isLoading.clearCache && styles.buttonDisabled]} 
-        onPress={() => action.dispatch('user/clear-cache')}
-        disabled={isLoading.clearCache}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading.clearCache ? '클리어 중...' : '캐시 클리어'}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.button, isLoading.updateProfile && styles.buttonDisabled]} 
+        style={[styles.button, isLoading['user/update-profile'] && styles.buttonDisabled]} 
         onPress={() => action.dispatch('user/update-profile', {
           userId: '123',
           data: { name: 'Jane Smith', bio: '업데이트된 프로필입니다' }
         })}
-        disabled={isLoading.updateProfile}
+        disabled={isLoading['user/update-profile']}
       >
-        <Text style={styles.buttonText}>
-          {isLoading.updateProfile ? '업데이트 중...' : '프로필 업데이트'}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.button, isLoading.changePassword && styles.buttonDisabled]} 
-        onPress={() => action.dispatch('user/change-password', {
-          currentPassword: 'oldpass123',
-          newPassword: 'newpass456'
-        })}
-        disabled={isLoading.changePassword}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading.changePassword ? '변경 중...' : '비밀번호 변경'}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.button, isLoading.verifyEmail && styles.buttonDisabled]} 
-        onPress={() => action.dispatch('user/verify-email', {
-          token: 'verification-token-123'
-        })}
-        disabled={isLoading.verifyEmail}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading.verifyEmail ? '인증 중...' : '이메일 인증'}
-        </Text>
+        <Text style={styles.buttonText}>프로필 업데이트</Text>
       </TouchableOpacity>
     </View>
   );
 };
 
-// UI 관련 컴포넌트
+// UI 관련 컴포넌트 (간소화)
 const UIActionsComponent: React.FC = () => {
   const action = useAction();
+  const { addLog } = useTestContext();
   const [modalVisible, setModalVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'system'>('light');
-  const [currentRoute, setCurrentRoute] = useState('/home');
 
-  // 모달 표시/숨기기 핸들러
   useActionHandler('ui/show-modal', (payload) => {
-    console.log('모달 표시:', payload);
+    addLog({ 
+      action: 'ui/show-modal', 
+      type: 'ui', 
+      status: 'success',
+      message: '모달 표시됨',
+      payload 
+    });
     setModalVisible(true);
   });
 
-  useActionHandler('ui/hide-modal', (payload) => {
-    console.log('모달 숨기기:', payload);
-    setModalVisible(false);
-  });
-
-  // 사이드바 토글 핸들러
-  useActionHandler('ui/toggle-sidebar', () => {
-    console.log('사이드바 토글');
+  useActionHandler('ui/toggle-sidebar', (_payload) => {
+    addLog({ 
+      action: 'ui/toggle-sidebar', 
+      type: 'ui', 
+      status: 'success',
+      message: '사이드바 토글됨'
+    });
     setSidebarVisible(prev => !prev);
   });
 
-  // 사이드바 닫기 핸들러
-  useActionHandler('ui/close-sidebar', () => {
-    console.log('사이드바 닫기');
-    setSidebarVisible(false);
-  });
-
-  // 모든 모달 숨기기 핸들러
-  useActionHandler('ui/hide-all-modals', () => {
-    console.log('모든 모달 숨기기');
-    setModalVisible(false);
-  });
-
-  // UI 새로고침 핸들러
-  useActionHandler('ui/refresh-ui', () => {
-    console.log('UI 새로고침');
-    // UI 상태 초기화
-    setModalVisible(false);
-    setSidebarVisible(false);
-    setCurrentTheme('light');
-    setCurrentRoute('/home');
-  });
-
-  // 뒤로가기 핸들러
-  useActionHandler('ui/go-back', () => {
-    console.log('뒤로가기');
-    setCurrentRoute('/previous');
-  });
-
-  // 테마 변경 핸들러
   useActionHandler('ui/set-theme', (payload) => {
-    console.log('테마 변경:', payload.theme);
+    addLog({ 
+      action: 'ui/set-theme', 
+      type: 'ui', 
+      status: 'success',
+      message: `테마 변경: ${payload.theme}`,
+      payload 
+    });
     setCurrentTheme(payload.theme);
   });
 
-  // 네비게이션 핸들러
-  useActionHandler('ui/navigate', (payload) => {
-    console.log('네비게이션:', payload);
-    setCurrentRoute(payload.route);
+  useActionHandler('ui/show-toast', (payload) => {
+    addLog({ 
+      action: 'ui/show-toast', 
+      type: 'ui', 
+      status: 'success',
+      message: `토스트 표시: ${payload.message}`,
+      payload 
+    });
+  });
+
+  useActionHandler('ui/hide-modal', (payload) => {
+    addLog({ 
+      action: 'ui/hide-modal', 
+      type: 'ui', 
+      status: 'success',
+      message: '모달 숨김',
+      payload 
+    });
+    setModalVisible(false);
   });
 
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>UI 액션 테스트</Text>
-      <Text style={styles.statusText}>현재 테마: {currentTheme}</Text>
-      <Text style={styles.statusText}>현재 경로: {currentRoute}</Text>
-      <Text style={styles.statusText}>사이드바: {sidebarVisible ? '열림' : '닫힘'}</Text>
       
+      <View style={styles.uiStatus}>
+        <Text style={styles.statusText}>테마: {currentTheme}</Text>
+        <Text style={styles.statusText}>사이드바: {sidebarVisible ? '열림 🔓' : '닫힘 🔒'}</Text>
+        <Text style={styles.statusText}>모달: {modalVisible ? '표시중 👁️' : '숨김 🙈'}</Text>
+      </View>
+
       <View style={styles.buttonRow}>
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
           onPress={() => action.dispatch('ui/show-toast', {
             type: 'success',
-            message: '성공 토스트입니다!',
+            message: '성공 토스트!',
             duration: 2000
           })}
         >
           <Text style={styles.buttonText}>성공 토스트</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/show-toast', {
-            type: 'error',
-            message: '에러 토스트입니다!',
-            duration: 3000
-          })}
-        >
-          <Text style={styles.buttonText}>에러 토스트</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.buttonRow}>
-        <TouchableOpacity 
-          style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/show-toast', {
-            type: 'warning',
-            message: '경고 토스트입니다!',
-            duration: 2500
-          })}
-        >
-          <Text style={styles.buttonText}>경고 토스트</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/show-toast', {
-            type: 'info',
-            message: '정보 토스트입니다!',
-            duration: 2000
-          })}
-        >
-          <Text style={styles.buttonText}>정보 토스트</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={() => action.dispatch('ui/show-modal', {
-          modalId: 'test-modal',
-          props: { title: '테스트 모달' }
-        })}
-      >
-        <Text style={styles.buttonText}>모달 열기</Text>
-      </TouchableOpacity>
-
-      <View style={styles.buttonRow}>
+        
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
           onPress={() => action.dispatch('ui/toggle-sidebar')}
         >
           <Text style={styles.buttonText}>사이드바 토글</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/close-sidebar')}
-        >
-          <Text style={styles.buttonText}>사이드바 닫기</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.buttonRow}>
-        <TouchableOpacity 
-          style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/hide-all-modals')}
-        >
-          <Text style={styles.buttonText}>모든 모달 숨기기</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/refresh-ui')}
-        >
-          <Text style={styles.buttonText}>UI 새로고침</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={() => action.dispatch('ui/go-back')}
-      >
-        <Text style={styles.buttonText}>뒤로가기</Text>
-      </TouchableOpacity>
-
-      <View style={styles.buttonRow}>
-        <TouchableOpacity 
-          style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/set-theme', { theme: 'light' })}
-        >
-          <Text style={styles.buttonText}>라이트</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
           onPress={() => action.dispatch('ui/set-theme', { theme: 'dark' })}
         >
-          <Text style={styles.buttonText}>다크</Text>
+          <Text style={styles.buttonText}>다크 테마</Text>
         </TouchableOpacity>
-
+        
         <TouchableOpacity 
           style={[styles.button, styles.buttonSmall]} 
-          onPress={() => action.dispatch('ui/set-theme', { theme: 'system' })}
+          onPress={() => action.dispatch('ui/show-modal', { modalId: 'test' })}
         >
-          <Text style={styles.buttonText}>시스템</Text>
+          <Text style={styles.buttonText}>모달 열기</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={() => action.dispatch('ui/navigate', {
-          route: '/profile',
-          params: { userId: '123' }
-        })}
-      >
-        <Text style={styles.buttonText}>프로필로 이동</Text>
-      </TouchableOpacity>
-
-      {/* 간단한 모달 표시 */}
       {modalVisible && (
-        <View style={styles.modal}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>테스트 모달</Text>
+            <Text style={styles.modalTitle}>테스트 모달 ✨</Text>
             <TouchableOpacity 
               style={styles.button} 
-              onPress={() => action.dispatch('ui/hide-modal', { modalId: 'test-modal' })}
+              onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.buttonText}>모달 닫기</Text>
+              <Text style={styles.buttonText}>닫기</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      )}
-
-      {/* 간단한 사이드바 표시 */}
-      {sidebarVisible && (
-        <View style={styles.sidebar}>
-          <Text style={styles.sidebarTitle}>사이드바</Text>
-          <Text style={styles.sidebarText}>메뉴 항목들...</Text>
-        </View>
-      )}
-    </View>
-  );
-};
-
-// 데이터 관련 컴포넌트
-const DataActionsComponent: React.FC = () => {
-  const action = useAction();
-  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
-  const [fetchResult, setFetchResult] = useState<string>('');
-  const [cacheKeys, setCacheKeys] = useState<string[]>([]);
-
-  // 데이터 fetch 핸들러
-  useActionHandler('data/fetch', async (payload, controller) => {
-    console.log('데이터 fetch:', payload);
-    setIsLoading(prev => ({ ...prev, fetch: true }));
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const mockData = {
-        endpoint: payload.endpoint,
-        method: payload.method || 'GET',
-        timestamp: new Date().toISOString(),
-        data: { result: 'success', items: [1, 2, 3] }
-      };
-      
-      setFetchResult(JSON.stringify(mockData, null, 2));
-      
-      await action.dispatch('ui/show-toast', {
-        type: 'success',
-        message: `데이터 fetch 완료: ${payload.endpoint}`,
-        duration: 2000
-      });
-    } catch {
-      controller.abort('데이터 fetch 실패');
-    } finally {
-      setIsLoading(prev => ({ ...prev, fetch: false }));
-    }
-  });
-
-  // 캐시 무효화 핸들러
-  useActionHandler('data/cache-invalidate', async (payload) => {
-    console.log('캐시 무효화:', payload.keys);
-    setIsLoading(prev => ({ ...prev, cacheInvalidate: true }));
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setCacheKeys(payload.keys);
-      
-      await action.dispatch('ui/show-toast', {
-        type: 'info',
-        message: `${payload.keys.length}개 캐시 키 무효화 완료`,
-        duration: 2000
-      });
-    } finally {
-      setIsLoading(prev => ({ ...prev, cacheInvalidate: false }));
-    }
-  });
-
-  // 배치 업데이트 핸들러
-  useActionHandler('data/batch-update', async (payload, controller) => {
-    console.log('배치 업데이트:', payload.updates);
-    setIsLoading(prev => ({ ...prev, batchUpdate: true }));
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      await action.dispatch('ui/show-toast', {
-        type: 'success',
-        message: `${payload.updates.length}개 항목 배치 업데이트 완료`,
-        duration: 2500
-      });
-    } catch {
-      controller.abort('배치 업데이트 실패');
-    } finally {
-      setIsLoading(prev => ({ ...prev, batchUpdate: false }));
-    }
-  });
-
-  // 동기화 핸들러
-  useActionHandler('data/sync', async (payload, controller) => {
-    console.log('데이터 동기화:', payload);
-    setIsLoading(prev => ({ ...prev, sync: true }));
-    
-    try {
-      const timeout = payload.options?.timeout || 3000;
-      await new Promise(resolve => setTimeout(resolve, timeout));
-      
-      await action.dispatch('ui/show-toast', {
-        type: 'success',
-        message: `${payload.source} 동기화 완료`,
-        duration: 2000
-      });
-    } catch {
-      controller.abort('동기화 실패');
-    } finally {
-      setIsLoading(prev => ({ ...prev, sync: false }));
-    }
-  });
-
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>데이터 액션 테스트</Text>
-      
-      <TouchableOpacity 
-        style={[styles.button, isLoading.fetch && styles.buttonDisabled]} 
-        onPress={() => action.dispatch('data/fetch', {
-          endpoint: '/api/users',
-          method: 'GET',
-          params: { page: 1, limit: 10 },
-          headers: { 'Authorization': 'Bearer token' }
-        })}
-        disabled={isLoading.fetch}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading.fetch ? 'Fetch 중...' : 'API 데이터 Fetch'}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.button, isLoading.cacheInvalidate && styles.buttonDisabled]} 
-        onPress={() => action.dispatch('data/cache-invalidate', {
-          keys: ['users', 'posts', 'comments']
-        })}
-        disabled={isLoading.cacheInvalidate}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading.cacheInvalidate ? '무효화 중...' : '캐시 무효화'}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.button, isLoading.batchUpdate && styles.buttonDisabled]} 
-        onPress={() => action.dispatch('data/batch-update', {
-          updates: [
-            { id: '1', changes: { name: 'John Updated', status: 'active' } },
-            { id: '2', changes: { name: 'Jane Updated', status: 'inactive' } },
-            { id: '3', changes: { name: 'Bob Updated', status: 'pending' } }
-          ]
-        })}
-        disabled={isLoading.batchUpdate}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading.batchUpdate ? '업데이트 중...' : '배치 업데이트'}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.button, isLoading.sync && styles.buttonDisabled]} 
-        onPress={() => action.dispatch('data/sync', {
-          source: 'remote-server',
-          options: { force: true, timeout: 2000 }
-        })}
-        disabled={isLoading.sync}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading.sync ? '동기화 중...' : '데이터 동기화'}
-        </Text>
-      </TouchableOpacity>
-
-      {fetchResult && (
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultTitle}>마지막 Fetch 결과:</Text>
-          <ScrollView style={styles.resultScroll}>
-            <Text style={styles.resultText}>{fetchResult}</Text>
-          </ScrollView>
-        </View>
-      )}
-
-      {cacheKeys.length > 0 && (
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusTitle}>무효화된 캐시 키:</Text>
-          <Text style={styles.statusText}>{cacheKeys.join(', ')}</Text>
         </View>
       )}
     </View>
@@ -658,114 +605,315 @@ const ToastComponent: React.FC = () => {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'warning' | 'info'>('info');
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useActionHandler('ui/show-toast', (payload) => {
-    setToastMessage(payload.message);
-    setToastType(payload.type);
-    setToastVisible(true);
-    
-    setTimeout(() => {
-      setToastVisible(false);
-    }, payload.duration || 3000);
+    // 기존 애니메이션이 있다면 중단
+    if (animationRef.current) {
+      animationRef.current.stop();
+    }
+
+    // 상태 업데이트를 다음 프레임으로 지연
+    requestAnimationFrame(() => {
+      setToastMessage(payload.message);
+      setToastType(payload.type);
+      setToastVisible(true);
+      
+      // 애니메이션 시퀀스 생성 (React Native 권장 방법)
+      const animationSequence = Animated.sequence([
+        // 토스트 슬라이드 인
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        // 지정된 시간 동안 대기 (setTimeout 대신 Animated.delay 사용)
+        Animated.delay(payload.duration || 3000),
+        // 토스트 슬라이드 아웃
+        Animated.timing(slideAnim, {
+          toValue: -100,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      // 애니메이션 시작 전 초기값 설정
+      slideAnim.setValue(-100);
+      
+      // 애니메이션 참조 저장 및 시작
+      animationRef.current = animationSequence;
+      animationSequence.start((finished) => {
+        // 애니메이션이 완전히 완료된 경우에만 토스트 숨기기
+        if (finished) {
+          requestAnimationFrame(() => {
+            setToastVisible(false);
+          });
+        }
+        // 애니메이션 참조 클리어
+        animationRef.current = null;
+      });
+    });
   });
+
+  // 컴포넌트 언마운트 시 애니메이션 정리
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        animationRef.current.stop();
+        animationRef.current = null;
+      }
+    };
+  }, []);
 
   if (!toastVisible) return null;
 
   const getToastStyle = () => {
     switch (toastType) {
-      case 'success':
-        return { backgroundColor: '#4CAF50' };
-      case 'error':
-        return { backgroundColor: '#F44336' };
-      case 'warning':
-        return { backgroundColor: '#FF9800' };
-      case 'info':
-      default:
-        return { backgroundColor: '#2196F3' };
+      case 'success': return { backgroundColor: '#4CAF50' };
+      case 'error': return { backgroundColor: '#F44336' };
+      case 'warning': return { backgroundColor: '#FF9800' };
+      default: return { backgroundColor: '#2196F3' };
     }
   };
 
   return (
-    <View style={[styles.toast, getToastStyle()]}>
+    <Animated.View 
+      style={[
+        styles.toast, 
+        getToastStyle(),
+        { transform: [{ translateY: slideAnim }] }
+      ]}
+    >
       <Text style={styles.toastText}>{toastMessage}</Text>
-    </View>
+    </Animated.View>
   );
 };
 
 // 메인 애플리케이션
 const CreateActionContextExample: React.FC = () => {
   return (
-    <ActionProvider>
-      <ScrollView style={styles.app}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>createActionContext 전체 테스트</Text>
-          <Text style={styles.headerSubtitle}>모든 액션 타입들의 시나리오 테스트</Text>
-        </View>
-        
-        <UserActionsComponent />
-        <UIActionsComponent />
-        <DataActionsComponent />
-        <ToastComponent />
-      </ScrollView>
-    </ActionProvider>
+    <TestProvider>
+      <ActionProvider>
+        <ScrollView style={styles.app}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>🚀 ActionContext 시각적 테스트</Text>
+            <Text style={styles.headerSubtitle}>실시간 모니터링 및 시각적 피드백</Text>
+          </View>
+          
+          <ActionDashboard />
+          <UserActionsComponent />
+          <UIActionsComponent />
+          <ToastComponent />
+        </ScrollView>
+      </ActionProvider>
+    </TestProvider>
   );
 };
 
 const styles = StyleSheet.create({
   app: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#6366f1',
     padding: 20,
     paddingTop: 50,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     marginTop: 5,
   },
-  section: {
+  dashboard: {
     backgroundColor: 'white',
-    margin: 10,
+    margin: 15,
     padding: 20,
-    borderRadius: 12,
-    elevation: 3,
+    borderRadius: 15,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
   },
-  sectionTitle: {
+  dashboardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  dashboardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
-    borderBottomWidth: 2,
-    borderBottomColor: '#007AFF',
-    paddingBottom: 5,
+    color: '#1f2937',
   },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 12,
+  clearButton: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
     borderRadius: 8,
-    marginVertical: 6,
+  },
+  clearButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 12,
+    marginHorizontal: 3,
     alignItems: 'center',
   },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 4,
+  },
+  logContainer: {
+    maxHeight: 200,
+  },
+  logItem: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    marginVertical: 4,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+  },
+  logHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  logAction: {
+    fontWeight: '600',
+    color: '#1f2937',
+    flex: 1,
+  },
+  logType: {
+    fontSize: 10,
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginHorizontal: 8,
+  },
+  logTime: {
+    fontSize: 11,
+    color: '#6b7280',
+  },
+  logMessage: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#4b5563',
+  },
+  logPayload: {
+    marginTop: 4,
+    fontSize: 10,
+    color: '#6b7280',
+    fontFamily: 'monospace',
+  },
+  section: {
+    backgroundColor: 'white',
+    margin: 15,
+    padding: 20,
+    borderRadius: 15,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#1f2937',
+    borderBottomWidth: 2,
+    borderBottomColor: '#6366f1',
+    paddingBottom: 8,
+  },
+  profileInfo: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 15,
+    fontStyle: 'italic',
+    backgroundColor: '#f3f4f6',
+    padding: 10,
+    borderRadius: 8,
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    margin: 4,
+  },
+  statusIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  statusLabel: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  uiStatus: {
+    backgroundColor: '#f3f4f6',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#4b5563',
+    marginBottom: 5,
+  },
+  button: {
+    backgroundColor: '#6366f1',
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 8,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#d1d5db',
+    elevation: 0,
+    shadowOpacity: 0,
   },
   buttonSmall: {
     flex: 1,
-    marginHorizontal: 3,
+    marginHorizontal: 4,
+    paddingVertical: 12,
   },
   buttonText: {
     color: 'white',
@@ -774,110 +922,48 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    marginVertical: 6,
+    marginVertical: 4,
   },
-  profileInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 10,
-    fontStyle: 'italic',
-  },
-  statusText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  statusContainer: {
-    backgroundColor: '#f8f9fa',
-    padding: 10,
-    borderRadius: 6,
-    marginTop: 10,
-  },
-  statusTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
-    marginBottom: 5,
-  },
-  resultContainer: {
-    backgroundColor: '#f8f9fa',
-    padding: 10,
-    borderRadius: 6,
-    marginTop: 10,
-    maxHeight: 200,
-  },
-  resultTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
-    marginBottom: 5,
-  },
-  resultScroll: {
-    maxHeight: 150,
-  },
-  resultText: {
-    fontSize: 12,
-    color: '#495057',
-    fontFamily: 'monospace',
-  },
-  modal: {
+  modalOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
   },
   modalContent: {
     backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    width: '80%',
+    padding: 30,
+    borderRadius: 20,
+    width: '85%',
     alignItems: 'center',
+    elevation: 10,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
-  },
-  sidebar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 200,
-    backgroundColor: '#343a40',
-    padding: 20,
-    zIndex: 999,
-  },
-  sidebarTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  sidebarText: {
-    color: '#adb5bd',
-    fontSize: 14,
+    marginBottom: 20,
+    color: '#1f2937',
   },
   toast: {
     position: 'absolute',
-    top: 80,
+    top: 90,
     left: 20,
     right: 20,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     zIndex: 1001,
+    elevation: 10,
   },
   toastText: {
     color: 'white',
     fontSize: 16,
     textAlign: 'center',
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });
 
