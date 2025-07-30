@@ -3,6 +3,7 @@ import { useCounter } from '../contexts/counterContext'
 export const useCounterViewModel = () => {
 	const [count, setCount] = useCounter()
 
+
 	const increment = () => {
 		setCount(count + 1)
 	}

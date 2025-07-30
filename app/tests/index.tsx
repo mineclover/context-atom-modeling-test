@@ -52,6 +52,15 @@ export default function TestsIndex() {
               </Text>
             </View>
           </Link>
+
+          <Link href="/tests/todo" style={styles.link}>
+            <View style={styles.linkCard}>
+              <Text style={styles.linkTitle}>📝 Todo useAtomSelect 테스트</Text>
+              <Text style={styles.linkDescription}>
+                객체 상태 관리와 useAtomSelect 패턴 테스트
+              </Text>
+            </View>
+          </Link>
         </View>
       </ScrollView>
     </>

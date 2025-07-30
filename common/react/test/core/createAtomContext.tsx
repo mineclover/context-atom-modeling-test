@@ -1,8 +1,7 @@
 import { atom, PrimitiveAtom } from 'jotai'
-import React, { createContext, ReactNode, useContext, useRef } from 'react'
+import React, { createContext, ReactNode, useContext, useRef, useMemo } from 'react'
 
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
-import { selectAtom } from 'jotai/utils'
 
 /**
  * Jotai atom을 Context로 공유할 수 있는 헬퍼 함수
@@ -45,9 +44,13 @@ export function createAtomContext<T>(initialValue: T) {
     return useAtomValue(atomRef.current)
   }
 
-  const useAtomSelect = (callback: (item: T) => T) => {
+  const useAtomSelect = <R,>(callback: (item: T) => R) => {
     const { atomRef } = useAtomContext()
-    return selectAtom(atomRef.current, callback)
+    const derivedAtom = useMemo(
+      () => atom((get) => callback(get(atomRef.current))),
+      [atomRef, callback]
+    )
+    return useAtomValue(derivedAtom)
   }
 
   // atom setter만 반환하는 hook

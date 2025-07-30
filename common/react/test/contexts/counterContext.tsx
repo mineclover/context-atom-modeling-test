@@ -6,4 +6,5 @@ export const {
   useAtomState: useCounter,
   useAtomReadOnly: useCounterValue,
   useAtomSetter: useCounterSetter,
+  useAtomSelect: useCounterSelect,
 } = createAtomContext(0)
